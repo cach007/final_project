@@ -261,6 +261,23 @@ def download_file():
     list_box.bind("<<ListboxSelect>>", refresh)
 
 
+def edit_file():    # 메뉴바 File에서 edit 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
+
+    Edit_File = Toplevel(root)
+    user_frame = Frame(Edit_File)
+    user_frame.pack(fill="both")
+
+    user_scroll = Scrollbar(user_frame)
+    user_scroll.pack(side="right", fill="y", )
+
+    user_file = Listbox(user_frame, selectmode="extended", height=15, yscrollcommand=scrollbar.set)
+    user_file.pack(side="left", fill="both", expand=True)
+    user_scroll.config(command=user_file.yview)
+
+    user_box = Listbox(user_file, selectmode="single")
+    user_box.pack(fill="both")
+
+
 menu = Menu(root)
 
 # File 메뉴
@@ -269,6 +286,7 @@ menu_file.add_command(label="Open Folder", command=open_folder)
 menu_file.add_separator()
 menu_file.add_command(label="Upload", command=upload_file, state="disable")
 menu_file.add_command(label="Download", command=download_file, state="disable")
+menu_file.add_command(label="Edit", command=edit_file)
 menu.add_cascade(label="File", menu=menu_file)
 
 # Login 메뉴
@@ -939,7 +957,6 @@ def bt5cmd():
             User_detect.destroy()
             messagebox.showinfo("complete", "사용자 추가 등록이 완료되었습니다")
 
-
         def add_image():
 
             img_files = filedialog.askdirectory(title="파일을 선택하세요", \
@@ -1033,7 +1050,7 @@ txt_dest_path = Entry(path_frame)
 txt_dest_path.pack(side="left", fill="x", expand=True, ipady=4)
 
 
-def ori_set():
+def ori_set():  # 초기 버튼 상태 비활성화
     bt3['state'] = DISABLED
     bt2['state'] = DISABLED
     bt5['state'] = DISABLED
