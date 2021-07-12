@@ -261,7 +261,7 @@ def download_file():
     list_box.bind("<<ListboxSelect>>", refresh)
 
 
-def edit_file():    # 메뉴바 File에서 edit 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
+def edit_file():    # 메뉴바 File에서 edit 버튼 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
 
     Edit_File = Toplevel(root)
     user_frame = Frame(Edit_File)
