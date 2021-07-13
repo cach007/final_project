@@ -65,11 +65,12 @@ def login():
 
         Login.destroy()
 
-    def login_state():
-        menu_login.entryconfig(2, state="disabled")
-        menu_login.entryconfig(3, state="normal")
+    def login_state():  # 로그인시 버튼 상태 변경
+        menu_login.entryconfig(2, state="disabled") # 로그인시 login 버튼 비활성화
+        menu_login.entryconfig(3, state="normal")   # 로그인시 logout 버튼 활성화
 
-        menu_file.entryconfig(3, state="normal")
+        menu_file.entryconfig(3, state="normal")    # 로그인시 download 버튼 활성화
+        menu_file.entryconfig(4, state="normal")    # 로그인시 edit 버튼 활성화
         global login_check
         login_check = True
 
@@ -96,6 +97,7 @@ def logout():
         menu_login.entryconfig(3, state="disabled")
         menu_file.entryconfig(2, state="disabled")
         menu_file.entryconfig(3, state="disabled")
+        menu_file.entryconfig(4, state="disabled")
 
     response = messagebox.askyesno(title="Logout", message="정말 로그아웃 하시겠습니까?")
     if response == 1:
@@ -226,7 +228,6 @@ def download_file():
         f.write(pickle.dumps(data))
         f.close()
         refresh_list()
-
         messagebox.showinfo("Complete", db_user + "데이터 다운로드 완료")
 
     Download = Toplevel(root)
@@ -261,9 +262,36 @@ def download_file():
     list_box.bind("<<ListboxSelect>>", refresh)
 
 
-def edit_file():    # 메뉴바 File에서 edit 버튼 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
+def edit_file():    # 메뉴바 File 에서 edit 버튼 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
 
+    db = client["test"]
+    a = db.list_collection_names()
+
+    def list_set():
+        user_box.delete(0, END)
+        for i in a:
+            val = str(i)
+            user_box.insert(END, val)
+
+    def list_user():
+        if user_box.curselection():
+            i = user_box.curselection()
+            num = user_box.index(i)
+            user = a[num]
+            return user
+        else:
+            return ''
+
+    def delete():
+        db_user = list_user()
+        collection = db[db_user]
+        collection.drop()
+        messagebox.showinfo("Complete", db_user + "데이터 삭제 완료")
+        Edit_File.destroy()
+
+    # edit 버튼 프레임
     Edit_File = Toplevel(root)
+
     user_frame = Frame(Edit_File)
     user_frame.pack(fill="both")
 
@@ -275,7 +303,23 @@ def edit_file():    # 메뉴바 File에서 edit 버튼 누르면 실행 ( db에 
     user_scroll.config(command=user_file.yview)
 
     user_box = Listbox(user_file, selectmode="single")
+    list_set()
     user_box.pack(fill="both")
+
+    btn_frame = Frame(Edit_File)
+    btn_frame.pack(fill="both")
+    delete_btn = Button(btn_frame, text="사용자 삭제", command=delete, stat="disable")
+    delete_btn.pack(fill="x")
+
+    def refresh(event):
+        selection = event.widget.curselection()
+        if selection:
+            delete_btn['state'] = NORMAL
+        else:
+            pass
+
+    Edit_File.resizable(False, False)
+    user_box.bind("<<ListboxSelect>>", refresh)
 
 
 menu = Menu(root)
@@ -286,7 +330,7 @@ menu_file.add_command(label="Open Folder", command=open_folder)
 menu_file.add_separator()
 menu_file.add_command(label="Upload", command=upload_file, state="disable")
 menu_file.add_command(label="Download", command=download_file, state="disable")
-menu_file.add_command(label="Edit", command=edit_file)
+menu_file.add_command(label="Edit", command=edit_file, state="disable")
 menu.add_cascade(label="File", menu=menu_file)
 
 # Login 메뉴
