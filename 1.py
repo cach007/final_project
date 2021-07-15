@@ -42,6 +42,7 @@ def open_folder():
 
 
 def login():
+
     def check_data():
 
         db = client["member"]
@@ -66,6 +67,7 @@ def login():
         Login.destroy()
 
     def login_state():  # 로그인시 버튼 상태 변경
+
         menu_login.entryconfig(2, state="disabled") # 로그인시 login 버튼 비활성화
         menu_login.entryconfig(3, state="normal")   # 로그인시 logout 버튼 활성화
 
@@ -174,11 +176,29 @@ def upload_file():
     if list_name:  # 리스트에서 현재 선택한 파일 받아오기
         user = list_name()
         print(user)
+        # 업로드 할 파일명이 이미 존재할 경우 자동으로 합쳐저 버리는 상황 발생
+        # 합칠건지 이름을 바꿔서 업로드 할건지 선택 하는 부분 추가할것
+        db = client["test"]
+        a = db.list_collection_names()
+
+        db_user = []
+        for i in a:
+            db_user.append(str(i))
+
+        print(db_user)
+        if user in db_user:
+            # 여기에 창띄어서 계속할지 중단할지 물어봄 (이름 바로 변경하는 기능 뺌)
+            response = messagebox.askyesno("warning", "db에 같은 이름의 사용자가 존재하여 \n기존파일에 추가됩니다 계속하시겠습니까?")
+            if response == 1:
+                pass
+            else:
+                messagebox.showinfo("CANCEL", "업로드를 중단하였습니다.")
+                return 0
     else:
         messagebox.showwarning("Error", "업로드할 사용자를 선택하여 주세요!!!")
-
     try:
         data = pickle.loads(open('users/' + user, "rb").read())
+
     except OSError:
         print('can\'t found ' + user)
 
