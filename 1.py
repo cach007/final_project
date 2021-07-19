@@ -23,20 +23,20 @@ client = pymongo.MongoClient("mongodb://pjh0903:wlsghd19@cluster0-shard-00-00.xn
 
 
 def load_data(path):  # 리스트 파일 로드 함수
-    try:  # 파일이 있는경우
-        global onlyfiles
+    # 폴더가 있을때 파일이 없는경우 onlyfiles 폴더를 만들지 못함
+    global onlyfiles
+    try:  # 폴더가 있는경우
         onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]  # users 폴더에 존재하는 모든 파일을 배열로 저장한다
-    except OSError:  # 파일이 없는 경우 에러 메시지
-        print('can\'t found Folder')
-        exit()
+    except OSError:  # 폴더 없는 경우 에러 메시지
+        onlyfiles = []
 
 
 root = Tk()
-
 root.title("detect one")
 
 
 def open_folder():
+    # users 폴더 없을때 생성하는 부분 추가 해야함 아니면 없다고 알려주던가
     path = os.path.realpath('users/')
     os.startfile(path)
 
