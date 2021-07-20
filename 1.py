@@ -10,6 +10,7 @@ import dlib
 import face_recognition
 import pymongo
 
+# 파일 날렸다가 복구함
 data_path = 'users/'  # 사용자 파일이 저장될 기본 경로
 encoding_file = os.path.join(os.path.abspath('../dnn/encodings'))
 select_folder = ''  # 파일 탐색 초기화
