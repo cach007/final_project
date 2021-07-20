@@ -36,8 +36,9 @@ root.title("detect one")
 
 
 def open_folder():
-    # users 폴더 없을때 생성하는 부분 추가 해야함 아니면 없다고 알려주던가
+    # users 폴더 없을때 생성할수 있게 수정 완료
     path = os.path.realpath('users/')
+    createFolder(path)
     os.startfile(path)
 
 
@@ -378,11 +379,9 @@ def refresh_list():  # 리스트를 업데이트 해주는 함수 사용자 추�
 
 
 def createFolder(directory):  # 폴더 생성 함수
-    try:
-        if not os.path.exists(directory):  # 해당 디렉토리가 존재 하지 않으면
-            os.makedirs(directory)  # 디렉토리를 생성한다
-    except OSError:  # 해당 디렉디렉토리가 존재할 경우
-        print('Error: Creating directory' + directory)  # 오류 메시지 프린트
+    if not os.path.exists(directory):  # 해당 디렉토리가 존재 하지 않으면
+        os.makedirs(directory)  # 디렉토리를 생성한다
+
 
 
 def bt1cmd():  # 사용자 등록 버튼  선택사항 1.웹캠으로 등록 2.사진 한장으로 등록
