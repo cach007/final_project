@@ -5,6 +5,7 @@ from os.path import isfile, join
 from tkinter import *
 from tkinter import filedialog, messagebox
 
+import bcrypt
 import cv2
 import dlib
 import face_recognition
@@ -21,6 +22,7 @@ client = pymongo.MongoClient("mongodb://pjh0903:wlsghd19@cluster0-shard-00-00.xn
                              "cluster0-shard-00-01.xnjn4.mongodb.net:27017,"
                              "cluster0-shard-00-02.xnjn4.mongodb.net:27017/myFirstDatabase?ssl=true&replicaSet=atlas"
                              "-8epj50-shard-0&authSource=admin&retryWrites=true&w=majority")
+print(client)
 
 
 def load_data(path):  # 리스트 파일 로드 함수
@@ -43,7 +45,7 @@ def open_folder():
     os.startfile(path)
 
 
-def login():
+def login():  # 로그인기능 구현
 
     def check_data():
 
@@ -54,9 +56,14 @@ def login():
         x2 = str(user_pw.get())
         print(x1, x2)
 
-        a = collection.find_one({"name": x1, "password": x2})
-        print(a)
-        if a:
+        print(x2)
+        a = collection.find_one({"name": x1})
+
+        pw = a["password"]
+        pw = pw.encode("utf-8")
+        pw_check = bcrypt.checkpw(x2.encode("utf-8"), pw)
+
+        if pw_check:
             login_state()
             messagebox.showinfo("Success", "로그인 되었습니다!!!")
 
@@ -70,11 +77,11 @@ def login():
 
     def login_state():  # 로그인시 버튼 상태 변경
 
-        menu_login.entryconfig(2, state="disabled") # 로그인시 login 버튼 비활성화
-        menu_login.entryconfig(3, state="normal")   # 로그인시 logout 버튼 활성화
+        menu_login.entryconfig(2, state="disabled")  # 로그인시 login 버튼 비활성화
+        menu_login.entryconfig(3, state="normal")  # 로그인시 logout 버튼 활성화
 
-        menu_file.entryconfig(3, state="normal")    # 로그인시 download 버튼 활성화
-        menu_file.entryconfig(4, state="normal")    # 로그인시 edit 버튼 활성화
+        menu_file.entryconfig(3, state="normal")  # 로그인시 download 버튼 활성화
+        menu_file.entryconfig(4, state="normal")  # 로그인시 edit 버튼 활성화
         global login_check
         login_check = True
 
@@ -95,7 +102,7 @@ def login():
     btn_log.grid(row=2, column=1)
 
 
-def logout():
+def logout():  # 로그아웃 기능 함수 실행 여부를 묻고 로그인 이전으로 버튼 상태를 되돌린다
     def logout_state():
         menu_login.entryconfig(2, state="normal")
         menu_login.entryconfig(3, state="disabled")
@@ -114,7 +121,7 @@ def logout():
         messagebox.showinfo("CANCEL", "로그아웃 되지 않았습니다")
 
 
-def register():
+def register():  # 회원가입 기능
     db = client["member"]
     collection = db["member"]
 
@@ -141,8 +148,8 @@ def register():
 
         x1 = str(Uname.get())
         x2 = str(Upass.get())
+        x2 = bcrypt.hashpw(x2.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         print(x1, x2)
-
         a = collection.insert_one({"name": x1, "password": x2})
         print(a)
         if a:
@@ -174,7 +181,7 @@ def register():
     r_btn.grid(row=2, column=1, padx=10, pady=10)
 
 
-def upload_file():
+def upload_file():  # 사용자 파일을 데이터베이스에 업로드 하는 함수
     if list_name:  # 리스트에서 현재 선택한 파일 받아오기
         user = list_name()
         print(user)
@@ -284,7 +291,7 @@ def download_file():
     list_box.bind("<<ListboxSelect>>", refresh)
 
 
-def edit_file():    # 메뉴바 File 에서 edit 버튼 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
+def edit_file():  # 메뉴바 File 에서 edit 버튼 누르면 실행 ( db에 저장된 사용자 정보 삭제에 이용)
 
     db = client["test"]
     a = db.list_collection_names()
@@ -382,7 +389,6 @@ def refresh_list():  # 리스트를 업데이트 해주는 함수 사용자 추�
 def createFolder(directory):  # 폴더 생성 함수
     if not os.path.exists(directory):  # 해당 디렉토리가 존재 하지 않으면
         os.makedirs(directory)  # 디렉토리를 생성한다
-
 
 
 def bt1cmd():  # 사용자 등록 버튼  선택사항 1.웹캠으로 등록 2.사진 한장으로 등록
