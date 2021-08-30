@@ -61,13 +61,18 @@ def login():  # 로그인기능 구현
 
         pw = a["password"]
         pw = pw.encode("utf-8")
-        pw_check = bcrypt.checkpw(x2.encode("utf-8"), pw)
+        pw_check = bcrypt.checkpw(x2.encode("utf-8"), pw)   # 입력값과 해쉬값이 동일한지 확인
+        admin_check = a['approved']      # 관리자가 승인했는지체크 bool
+        print(admin_check)
 
         if pw_check:
-            login_state()
-            messagebox.showinfo("Success", "로그인 되었습니다!!!")
+            if admin_check:   # 관리자 승인이 된경우 체크
+                login_state()   # 정상 로그인 상태로 변환
+                messagebox.showinfo("Success", "로그인 되었습니다!!!")
+            else:   # 관리자 승인이 되지 않은경우
+                messagebox.showinfo("Sorry", "아직 회원가입이 승인되지 않았습니다.")
 
-        else:
+        else:   # 아이디나 비밀번호가 틀린경우
             messagebox.showwarning("Failed", "ID나 PASSWORD 를 확인해 주세요")
 
         user_id.delete(0, END)
@@ -150,7 +155,8 @@ def register():  # 회원가입 기능
         x2 = str(Upass.get())
         x2 = bcrypt.hashpw(x2.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         print(x1, x2)
-        a = collection.insert_one({"name": x1, "password": x2})
+        # 관리자 승인이 되지 못한 상태로 가입 진행됨
+        a = collection.insert_one({"name": x1, "password": x2, "approved": False, "admin": False})
         print(a)
         if a:
             messagebox.showinfo("Success", "가입 되었습니다!!!")
@@ -351,6 +357,10 @@ def edit_file():  # 메뉴바 File 에서 edit 버튼 누르면 실행 ( db에 �
     user_box.bind("<<ListboxSelect>>", refresh)
 
 
+def approval():
+    print()
+
+
 menu = Menu(root)
 
 # File 메뉴
@@ -369,6 +379,11 @@ menu_login.add_separator()
 menu_login.add_command(label="Login", command=login, state="normal")
 menu_login.add_command(label="Logout", command=logout, state="disable")
 menu.add_cascade(label="User", menu=menu_login)
+
+# 관리자 메뉴
+menu_admin = Menu(menu, tearoff=0)
+menu_admin.add_command(label="Users", command=approval, state="disable") # 관리자가 회원가입 승인하는 버튼
+menu.add_cascade(label="Admin", menu=menu_admin)
 
 root.config(menu=menu)
 Label(root, text="실행하실 작업을 선택해주세요").pack(side="top")
@@ -1149,7 +1164,7 @@ def callback(event):  # 리스트클릭 이벤트 발생시 switch 함수를 불
     selection = event.widget.curselection()
     if selection:
         switchButtonState()
-        if login_check is True:
+        if login_check:
             menu_file.entryconfig(2, state="normal")
     else:
         pass
@@ -1177,3 +1192,4 @@ btn_dest_path.pack(side="right")
 
 root.resizable(False, False)
 root.mainloop()
+
