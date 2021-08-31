@@ -358,7 +358,38 @@ def edit_file():  # 메뉴바 File 에서 edit 버튼 누르면 실행 ( db에 �
 
 
 def approval():
-    print()
+
+    Users = Toplevel(root)
+    Users.wm_attributes("-topmost", 1)
+
+    Unsign_frame = Frame(Users)
+    Unsign_frame.pack(side="left", fill="both")
+
+    signed_frame = Frame(Users)
+    signed_frame.pack(side="right", fill="both")
+
+    control_frame = Frame(Users)
+    control_frame.pack(fill="both")
+
+    Unsign_scroll = Scrollbar(Unsign_frame)
+    Unsign_scroll.pack(side="right", fill="y", )
+
+    Unsign_file = Listbox(Unsign_frame, selectmode="extended", height=8, yscrollcommand=Unsign_scroll.set)
+    Unsign_file.pack(side="left", fill="both", expand=True)
+    Unsign_scroll.config(command=Unsign_file.yview)
+
+    signed_scroll = Scrollbar(signed_frame)
+    signed_scroll.pack(side="right", fill="y", )
+
+    signed_file = Listbox(signed_frame, selectmode="extended", height=8, yscrollcommand=signed_scroll.set)
+    signed_file.pack(side="left", fill="both", expand=True)
+    signed_scroll.config(command=signed_file.yview)
+
+    unsign_button = Button(control_frame, text=">")
+    unsign_button.pack()
+
+    signed_button = Button(control_frame, text="<")
+    signed_button.pack()
 
 
 menu = Menu(root)
@@ -382,7 +413,7 @@ menu.add_cascade(label="User", menu=menu_login)
 
 # 관리자 메뉴
 menu_admin = Menu(menu, tearoff=0)
-menu_admin.add_command(label="Users", command=approval, state="disable") # 관리자가 회원가입 승인하는 버튼
+menu_admin.add_command(label="Users", command=approval, state="normal") # 관리자가 회원가입 승인하는 버튼
 menu.add_cascade(label="Admin", menu=menu_admin)
 
 root.config(menu=menu)
