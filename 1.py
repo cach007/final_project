@@ -63,10 +63,14 @@ def login():  # 로그인기능 구현
         pw = pw.encode("utf-8")
         pw_check = bcrypt.checkpw(x2.encode("utf-8"), pw)   # 입력값과 해쉬값이 동일한지 확인
         admin_check = a['approved']      # 관리자가 승인했는지체크 bool
-        print(admin_check)
+        admin = a['admin']
 
         if pw_check:
-            if admin_check:   # 관리자 승인이 된경우 체크
+            if admin:
+                admin_state()
+                login_state()
+                messagebox.showinfo("Admin", "환영합니다 관리자님")
+            elif admin_check:   # 관리자 승인이 된경우 체크
                 login_state()   # 정상 로그인 상태로 변환
                 messagebox.showinfo("Success", "로그인 되었습니다!!!")
             else:   # 관리자 승인이 되지 않은경우
@@ -87,8 +91,12 @@ def login():  # 로그인기능 구현
 
         menu_file.entryconfig(3, state="normal")  # 로그인시 download 버튼 활성화
         menu_file.entryconfig(4, state="normal")  # 로그인시 edit 버튼 활성화
+
         global login_check
         login_check = True
+
+    def admin_state():
+        menu_admin.entryconfig(1, state="normal")
 
     Login = Toplevel(root)
     label_id = Label(Login, text="Username : ")
@@ -114,6 +122,7 @@ def logout():  # 로그아웃 기능 함수 실행 여부를 묻고 로그인 �
         menu_file.entryconfig(2, state="disabled")
         menu_file.entryconfig(3, state="disabled")
         menu_file.entryconfig(4, state="disabled")
+        menu_admin.entryconfig(1, state="disabled")
 
     response = messagebox.askyesno(title="Logout", message="정말 로그아웃 하시겠습니까?")
     if response == 1:
@@ -358,15 +367,62 @@ def edit_file():  # 메뉴바 File 에서 edit 버튼 누르면 실행 ( db에 �
 
 
 def approval():
+    db = client["member"]
+    collection = db["member"]
+
+    def list_set():     # 초기 리스트 세팅
+
+        a = collection.find({"approved": False})
+        b = collection.find({"approved": True, "admin": False})
+
+        Unsign_file.delete(0, END)  # 승인안된 회원리스트
+        signed_file.delete(0, END)  # 승인된 회원리스트
+
+        for i in a:
+            val = str(i['name'])
+            Unsign_file.insert(END, val)
+
+        for i in b:
+            val = str(i['name'])
+            signed_file.insert(END, val)
+
+    def app_user():     # 승인 안된 회원 리스트에서 선택하여 승인 시켜주는 함수
+
+        col = collection.find({"approved": False})
+        if Unsign_file.curselection():
+            i = Unsign_file.curselection()
+            num = Unsign_file.index(i)
+            sel = col[num]
+            print(sel['name'])
+            user = sel['name']
+            collection.update({"name": user}, {"$set": {"approved": True}})
+            list_set()
+        else:
+            pass
+
+    def un_user():
+        col = collection.find({"approved": True, "admin": False})
+        if signed_file.curselection():
+            i = signed_file.curselection()
+            num = signed_file.index(i)
+            sel = col[num]
+            print(sel['name'])
+            user = sel['name']
+            collection.update({"name": user}, {"$set": {"approved": False}})
+            list_set()
+        else:
+            pass
 
     Users = Toplevel(root)
     Users.wm_attributes("-topmost", 1)
 
     Unsign_frame = Frame(Users)
     Unsign_frame.pack(side="left", fill="both")
+    Label(Unsign_frame, text="승인대기중인 사용자").pack(side="top")
 
     signed_frame = Frame(Users)
     signed_frame.pack(side="right", fill="both")
+    Label(signed_frame, text="승인된 사용자").pack(side="top")
 
     control_frame = Frame(Users)
     control_frame.pack(fill="both")
@@ -374,22 +430,26 @@ def approval():
     Unsign_scroll = Scrollbar(Unsign_frame)
     Unsign_scroll.pack(side="right", fill="y", )
 
-    Unsign_file = Listbox(Unsign_frame, selectmode="extended", height=8, yscrollcommand=Unsign_scroll.set)
+    Unsign_file = Listbox(Unsign_frame, selectmode="single", height=8, yscrollcommand=Unsign_scroll.set)
     Unsign_file.pack(side="left", fill="both", expand=True)
     Unsign_scroll.config(command=Unsign_file.yview)
 
     signed_scroll = Scrollbar(signed_frame)
     signed_scroll.pack(side="right", fill="y", )
 
-    signed_file = Listbox(signed_frame, selectmode="extended", height=8, yscrollcommand=signed_scroll.set)
+    signed_file = Listbox(signed_frame, selectmode="single", height=8, yscrollcommand=signed_scroll.set)
     signed_file.pack(side="left", fill="both", expand=True)
     signed_scroll.config(command=signed_file.yview)
 
-    unsign_button = Button(control_frame, text=">")
+    Label(control_frame, text="").pack(side="top")
+
+    unsign_button = Button(control_frame, text=">", command=app_user, )
     unsign_button.pack()
 
-    signed_button = Button(control_frame, text="<")
+    signed_button = Button(control_frame, text="<", command=un_user, )
     signed_button.pack()
+
+    list_set()
 
 
 menu = Menu(root)
@@ -413,7 +473,7 @@ menu.add_cascade(label="User", menu=menu_login)
 
 # 관리자 메뉴
 menu_admin = Menu(menu, tearoff=0)
-menu_admin.add_command(label="Users", command=approval, state="normal") # 관리자가 회원가입 승인하는 버튼
+menu_admin.add_command(label="Users", command=approval, state="disable")     # 관리자가 회원가입 승인하는 버튼
 menu.add_cascade(label="Admin", menu=menu_admin)
 
 root.config(menu=menu)
