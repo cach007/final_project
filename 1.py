@@ -61,8 +61,8 @@ def login():  # 로그인기능 구현
 
         pw = a["password"]
         pw = pw.encode("utf-8")
-        pw_check = bcrypt.checkpw(x2.encode("utf-8"), pw)   # 입력값과 해쉬값이 동일한지 확인
-        admin_check = a['approved']      # 관리자가 승인했는지체크 bool
+        pw_check = bcrypt.checkpw(x2.encode("utf-8"), pw)  # 입력값과 해쉬값이 동일한지 확인
+        admin_check = a['approved']  # 관리자가 승인했는지체크 bool
         admin = a['admin']
 
         if pw_check:
@@ -70,13 +70,13 @@ def login():  # 로그인기능 구현
                 admin_state()
                 login_state()
                 messagebox.showinfo("Admin", "환영합니다 관리자님")
-            elif admin_check:   # 관리자 승인이 된경우 체크
-                login_state()   # 정상 로그인 상태로 변환
+            elif admin_check:  # 관리자 승인이 된경우 체크
+                login_state()  # 정상 로그인 상태로 변환
                 messagebox.showinfo("Success", "로그인 되었습니다!!!")
-            else:   # 관리자 승인이 되지 않은경우
+            else:  # 관리자 승인이 되지 않은경우
                 messagebox.showinfo("Sorry", "아직 회원가입이 승인되지 않았습니다.")
 
-        else:   # 아이디나 비밀번호가 틀린경우
+        else:  # 아이디나 비밀번호가 틀린경우
             messagebox.showwarning("Failed", "ID나 PASSWORD 를 확인해 주세요")
 
         user_id.delete(0, END)
@@ -370,7 +370,7 @@ def approval():
     db = client["member"]
     collection = db["member"]
 
-    def list_set():     # 초기 리스트 세팅
+    def list_set():  # 초기 리스트 세팅
 
         a = collection.find({"approved": False})
         b = collection.find({"approved": True, "admin": False})
@@ -386,7 +386,7 @@ def approval():
             val = str(i['name'])
             signed_file.insert(END, val)
 
-    def app_user():     # 승인 안된 회원 리스트에서 선택하여 승인 시켜주는 함수
+    def app_user():  # 승인 안된 회원 리스트에서 선택하여 승인 시켜주는 함수
 
         col = collection.find({"approved": False})
         if Unsign_file.curselection():
@@ -473,7 +473,7 @@ menu.add_cascade(label="User", menu=menu_login)
 
 # 관리자 메뉴
 menu_admin = Menu(menu, tearoff=0)
-menu_admin.add_command(label="Users", command=approval, state="disable")     # 관리자가 회원가입 승인하는 버튼
+menu_admin.add_command(label="Users", command=approval, state="disable")  # 관리자가 회원가입 승인하는 버튼
 menu.add_cascade(label="Admin", menu=menu_admin)
 
 root.config(menu=menu)
@@ -1010,7 +1010,7 @@ def bt4cmd():  # 리스트에 있는 모든 사용자를 탐색
     btn3.pack(fill='x')
 
 
-def bt5cmd():
+def bt5cmd():  # 사용자 파일 추가 및 이름 변경
     if list_name:  # 리스트에서 현재 선택한 파일 받아오기
         user = list_name()
         print(user)
@@ -1041,7 +1041,25 @@ def bt5cmd():
 
         def change_name(g_name):
             new_file = 'users/' + g_name
-            os.rename(file, new_file)
+            change = []
+            encodings = []
+            os.rename(file, new_file)  # 폴더의 파일명 변경
+
+            try:
+                data = pickle.loads(open(new_file, "rb").read())
+            except OSError:
+                print('can\'t found ' + user)
+
+            for i in data["encodings"]:
+                encodings.append(i)
+                change.append(g_name)
+
+            change_file = {"encodings": encodings, "names": change}
+
+            files = open(new_file, 'wb')
+            files.write(pickle.dumps(change_file))
+            files.close()
+
             refresh_list()
 
         getName = Toplevel(User_detect)  # 새 창띄워서 이름 입력받기
@@ -1283,4 +1301,3 @@ btn_dest_path.pack(side="right")
 
 root.resizable(False, False)
 root.mainloop()
-
