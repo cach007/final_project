@@ -236,8 +236,7 @@ def upload_file():  # 사용자 파일을 데이터베이스에 업로드 하는
 
 
 def download_file():
-    knownEncodings = []
-    knownNames = []
+
     db = client["test"]
     a = db.list_collection_names()
 
@@ -257,10 +256,23 @@ def download_file():
             return ''
 
     def download():
+        knownEncodings = []
+        knownNames = []
+
         db_user = list_user()
+
+        if db_user in listdir(data_path):
+            response = messagebox.askyesno("warning", "컴퓨터에 같은 이름의 사용자가 존재 합니다 \n덮어쓰시겠습니까?")
+            if response == 1:
+                pass
+            else:
+                messagebox.showinfo("CANCEL", "다운로드 취소.")
+                return 0
+
         collection = db[db_user]
 
         result = collection.find({"name": db_user}, {"_id": False})
+
         for r in result:
             knownEncodings.append(r["128d"])
             knownNames.append(db_user)
@@ -1217,14 +1229,14 @@ bt3 = Button(file_frame2, text="사용자 삭제", padx=5, pady=5, width=9, comm
 bt4 = Button(file_frame1, text="모든 등록 탐색", padx=5, pady=5, width=15, command=bt4cmd)
 bt5 = Button(file_frame2, text="사용자 수정", padx=5, pady=5, command=bt5cmd, state=DISABLED)
 
-bt1.pack(side="left")
-bt2.pack(side="left")
-bt3.pack(side="right")
-bt4.pack(side='right')
-bt5.pack(fill='x')
+bt1.grid(row=0, column=0)
+bt2.grid(row=0, column=0)
+bt3.grid(row=0, column=2)
+bt4.grid(row=0, column=1)
+bt5.grid(row=0, column=1)
 
 list_frame = Frame(root)
-list_frame.pack(fill="both")
+list_frame.pack(fill="both",)
 
 scrollbar = Scrollbar(list_frame)
 scrollbar.pack(side="right", fill="y", )
@@ -1238,7 +1250,7 @@ refresh_list()
 listbox.pack(fill="both")
 
 path_frame = LabelFrame(root, text="파일위치")
-path_frame.pack(fill="x")
+path_frame.pack(fill="x",)
 
 txt_dest_path = Entry(path_frame)
 txt_dest_path.pack(side="left", fill="x", expand=True, ipady=4)
