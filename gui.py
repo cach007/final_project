@@ -21,6 +21,9 @@ import pymongo
 import bcrypt
 import numpy as np
 data_path = 'users/'  # 사용자 파일이 저장될 기본 경로
+member = "guest"
+Login = False
+Admin = False
 client = pymongo.MongoClient("mongodb://pjh0903:wlsghd19@cluster0-shard-00-00.xnjn4.mongodb.net:27017,"
                              "cluster0-shard-00-01.xnjn4.mongodb.net:27017,"
                              "cluster0-shard-00-02.xnjn4.mongodb.net:27017/myFirstDatabase?ssl=true&replicaSet=atlas"
@@ -71,6 +74,48 @@ def gotolocal():
     widget.setCurrentIndex(widget.currentIndex() + 1)
 
 
+def gotomember():
+    member = Member_Page()
+    widget.addWidget(member)
+    widget.currentIndex(widget.currentIndex() + 1)
+
+
+def gotoregister():
+    reg = Reg_Screen()
+    widget.addWidget(reg)
+    widget.setCurrentIndex(widget.currentIndex() + 1)
+
+
+def gotodb():
+    db = DB_Page()
+    widget.addWidget(db)
+    widget.setCurrentIndex(widget.currentIndex() + 1)
+
+
+def gotoadmin():
+    adm = Admin_Page()
+    widget.addWidget(adm)
+    widget.setCurrentIndex(widget.currentIndex() + 1)
+
+
+def loginstate():
+    global Login
+    Login = True
+
+
+def adminstate():
+    global Admin
+    global Login
+    Admin = True
+    Login = True
+
+
+def logoutstate():
+    global Login
+    global Admin
+    Login = False
+    Admin = False
+    gotohome()
 
 
 class Home_Screen(QMainWindow):
@@ -79,11 +124,11 @@ class Home_Screen(QMainWindow):
         loadUi("home.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.pushButton_2.clicked.connect(gotolocal)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton.clicked.connect(gotologin)
+        self.pushButton_4.clicked.connect(gotoadmin)
+
 
 
 class Local_Menu(QMainWindow):
@@ -92,8 +137,6 @@ class Local_Menu(QMainWindow):
         loadUi("localmenu.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(gotohome)
         self.detectButton.clicked.connect(gotodetect)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
@@ -103,14 +146,13 @@ class Detect(QMainWindow):
     def __init__(self):
         super().__init__()
         loadUi("listest.ui", self)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
         self.AddItem()
         self.backButton.clicked.connect(gotolocal)
         self.pushButton.clicked.connect(self.seleted)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+        self.pushButton_2.clicked.connect(self.findall)
 
     def AddItem(self):
         load_data(data_path)
@@ -121,11 +163,114 @@ class Detect(QMainWindow):
         user = self.listWidget.currentItem().text()
         print(user)
 
-        cam = camera(user)
+        cam = Camera(user)
         cam.exec_()
 
+    def findall(self):
+        find = FindAll()
+        find.exec_()
 
-class camera(QDialog):
+
+
+class FindAll(QDialog):
+    def __init__(self):
+        super().__init__()
+        loadUi("local.ui", self)
+        self.setFixedHeight(700)
+        self.setFixedHeight(800)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.backButton.clicked.connect(self.stop)
+        self.start_all()
+
+    def run_all(self):
+        knownEncodings = []
+        knownNames = []
+
+        load_data(data_path)  # 리스트에 들어가 파일이 있는 폴더를 스캔해준다
+        for i in onlyfiles:  # 리스트에 존재하는 파일 순서대로 입력
+            u_data = pickle.loads(open('users/' + i, "rb").read())
+            for encoding in u_data["encodings"]:
+                knownEncodings.append(encoding)
+                knownNames.append(i)
+
+        data = {"encodings": knownEncodings, "names": knownNames}
+        global running
+        cap = cv2.VideoCapture(0)
+        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        self.label.resize(width, height)
+        while running:
+            ret, img = cap.read()
+            if ret:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                boxes = face_recognition.face_locations(img, model='CNN')
+                encodings = face_recognition.face_encodings(img, boxes)
+                names = []
+                for encoding in encodings:
+                    matches = face_recognition.compare_faces(data["encodings"], encoding, tolerance=0.35)
+                    name = 'unknown'
+
+                    if True in matches:
+                        matchesIndxs = []
+                        for (i, b) in enumerate(matches):
+                            if b:
+                                matchesIndxs.append(i)
+
+                        counts = {}
+
+                        for items in matchesIndxs:
+                            name = data['names'][items]
+                            counts[name] = counts.get(name, 0) + 1
+
+                        for items in matchesIndxs:
+                            counts[data['names'][items]] = counts.get(data['names'][items]) + 1
+                        name = max(counts, key=counts.get)
+                        print(counts)
+                    names.append(name)
+
+                for ((top, right, bottom, left), name) in zip(boxes, names):
+                    # rescale the face coordinates
+
+                    color = (255, 255, 0)
+                    if name == 'unknown':
+                        color = (255, 255, 255)
+                        # draw the predicted face name on the image
+                    cv2.rectangle(img, (left, top), (right, bottom),
+                                  color, 2)
+                    y = top - 15 if top - 15 > 15 else top + 15
+                    cv2.putText(img, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.75, color, 2)
+
+                h, w, c = img.shape
+                print(h, w, c)
+                qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+                pixmap = QtGui.QPixmap.fromImage(qImg)
+                self.label.setPixmap(pixmap)
+            else:
+                QtWidgets.QMessageBox.about(widget, "Error", "Cannot read frame.")
+                print("cannot read frame.")
+                break
+        cap.release()
+        print("Thread end.")
+
+
+
+    def stop(self):
+        global running
+        running = False
+        print("stoped..")
+        self.close()
+
+
+    def start_all(self):
+        global running
+        running = True
+        th = threading.Thread(target=self.run_all)
+        th.start()
+        print("started All..")
+
+class Camera(QDialog):
     def __init__(self, user):
         super().__init__()
         loadUi("local.ui", self)
@@ -136,6 +281,7 @@ class camera(QDialog):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(self.stop)
         self.start()
+
 
     def run(self):
         knownEncodings = []
@@ -210,6 +356,7 @@ class camera(QDialog):
         cap.release()
         print("Thread end.")
 
+
     def stop(self):
         global running
         running = False
@@ -224,23 +371,17 @@ class camera(QDialog):
         print("started..")
 
 
+
 class Login_Screen(QMainWindow):
     def __init__(self):
         super(Login_Screen, self).__init__()
         loadUi("login.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.pushButton_2.clicked.connect(self.gotoregister)
+        self.pushButton_2.clicked.connect(gotoregister)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton.clicked.connect(self.btnClick)
         self.backButton.clicked.connect(gotohome)
-
-    def gotoregister(self):
-        reg = Reg_Screen()
-        widget.addWidget(reg)
-        widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def btnClick(self):
         db = client["member"]
@@ -260,10 +401,14 @@ class Login_Screen(QMainWindow):
             if admin:
                 print("관리자")
                 QMessageBox.about(self, "Admin", "관리자로 로그인되었습니다")
+                adminstate()
+                gotoadmin()
 
             elif admin_check:
                 print('로그인')
                 QMessageBox.about(self, "Success", "로그인되었습니다")
+                loginstate()
+                gotomember(Id)
             else:
                 print('승인안됨')
                 QMessageBox.about(self, "Warning", "관리자 승인이 되지 않은 사용자입니다")
@@ -277,10 +422,9 @@ class Reg_Screen(QMainWindow):
         loadUi("register.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(gotologin)
         self.pushButton.clicked.connect(self.register)
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
     def register(self):
         db = client["member"]
@@ -305,6 +449,61 @@ class Reg_Screen(QMainWindow):
                 QMessageBox.about(self, "Failed", "다시 진행해주세요")
 
         gotologin()
+
+
+class Admin_Page(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        loadUi("adminpage.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.pushButton.clicked.connect(gotodetect)
+        self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
+        self.pushButton_4.clicked.connect(gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+
+class Member_Page(QMainWindow):
+    def __init__(self, Id):
+        super.__init__()
+        # loadUi
+        loadUi("memberpage.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.pushButton_2.clicked.connect(logoutstate)     # 로그아웃 버튼
+        self.data.clicked.connect(gotodb)       # 데이터 베이스 접근 버튼 -> 업로드 다운로드
+        self.detect.clicked.connect(gotodetect)  # 사용자 찾는 버튼
+        self.label.setText(Id)
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+
+class DB_Page(QMainWindow):
+    def __init__(self, Id):
+        super.__init__()
+        loadUi("memberdb.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
+        self.pushButton.clicked.connect(self.donwnload)  # 다운로드 버튼
+        self.pushButton_4.clicked.connect(self.upload)  # 업로드 버튼
+        self.pushButton_5.clicked.connect(self.delete)  # db 삭제 버튼
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+        self.label.setText(Id)
+
+    def download(self):
+        pass
+
+    def upload(self):
+        pass
+
+    def delete(self):
+        pass
+
+
+class Detect_Member(QMainWindow):
+    def __init__(self):
+        pass
+    # 여기에 detect 완료된거 받아쓰기
 
 
 app = QtWidgets.QApplication(sys.argv)
