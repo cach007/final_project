@@ -12,7 +12,7 @@ import threading
 from PyQt5 import uic, QtCore, QtGui, QtWidgets
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QDialog, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, \
-    QStatusBar, QToolBar, QAction, QComboBox, QFileDialog, QListWidget, QTextEdit
+    QStatusBar, QToolBar, QAction, QComboBox, QFileDialog, QListWidget, QTextEdit, QInputDialog
 from PyQt5.QtCore import QCoreApplication, pyqtSignal, pyqtSlot, Qt, QThread, QTimer
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
@@ -20,14 +20,16 @@ from PyQt5.QtGui import QPixmap, QImage
 import pymongo
 import bcrypt
 import numpy as np
+
 data_path = 'users/'  # 사용자 파일이 저장될 기본 경로
-member = "guest"
 Login = False
 Admin = False
 client = pymongo.MongoClient("mongodb://pjh0903:wlsghd19@cluster0-shard-00-00.xnjn4.mongodb.net:27017,"
                              "cluster0-shard-00-01.xnjn4.mongodb.net:27017,"
                              "cluster0-shard-00-02.xnjn4.mongodb.net:27017/myFirstDatabase?ssl=true&replicaSet=atlas"
                              "-8epj50-shard-0&authSource=admin&retryWrites=true&w=majority")
+user_name = 'none'
+user = 'none'
 
 
 def load_data(path):  # 리스트 파일 로드 함수
@@ -62,6 +64,7 @@ def gotohome():
     widget.addWidget(home)
     widget.setCurrentIndex(widget.currentIndex() + 1)
 
+
 def gotodetect():
     detect = Detect()
     widget.addWidget(detect)
@@ -72,12 +75,6 @@ def gotolocal():
     local = Local_Menu()
     widget.addWidget(local)
     widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotomember():
-    member = Member_Page()
-    widget.addWidget(member)
-    widget.currentIndex(widget.currentIndex() + 1)
 
 
 def gotoregister():
@@ -95,6 +92,12 @@ def gotodb():
 def gotoadmin():
     adm = Admin_Page()
     widget.addWidget(adm)
+    widget.setCurrentIndex(widget.currentIndex() + 1)
+
+
+def gotomember():
+    mbr = Member_Page()
+    widget.addWidget(mbr)
     widget.setCurrentIndex(widget.currentIndex() + 1)
 
 
@@ -127,8 +130,7 @@ class Home_Screen(QMainWindow):
         self.pushButton_2.clicked.connect(gotolocal)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton.clicked.connect(gotologin)
-        self.pushButton_4.clicked.connect(gotoadmin)
-
+        self.pushButton_4.clicked.connect(gotomember)
 
 
 class Local_Menu(QMainWindow):
@@ -139,8 +141,188 @@ class Local_Menu(QMainWindow):
         self.setFixedWidth(400)
         self.backButton.clicked.connect(gotohome)
         self.detectButton.clicked.connect(gotodetect)
+        self.userButton.clicked.connect(self.gotoedit)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
+    def gotoedit(self):
+        edit = User_Edit()
+        widget.addWidget(edit)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+
+class User_Edit(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        loadUi("useredit.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.AddItem()
+        self.label.setAlignment(Qt.AlignCenter)
+        self.backButton.clicked.connect(gotolocal)
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+        self.pushButton_2.clicked.connect(self.Deleteuser)
+        self.pushButton.clicked.connect(self.Adduser)
+
+    def AddItem(self):
+        load_data(data_path)
+        for data in onlyfiles:
+            self.listWidget.addItem(data)
+
+    def Uplist(self):  # 리스트에 사용자를 추가하거나 삭제할시 리스트를 갱신해주는 함수
+        self.listWidget.clear()
+        load_data(data_path)
+        for data in onlyfiles:
+            self.listWidget.addItem(data)
+
+    def Adduser(self):
+        add = Add_User()
+        widget.addWidget(add)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def Deleteuser(self):  # 사용자를 삭제하는 함수
+        user = self.listWidget.currentItem().text()
+        if user:
+
+            print(user)
+        else:
+            QtWidgets.QMessageBox.about(widget, "Error", "삭제할 사용자를 선택하세요.")
+
+        file = 'users/' + user
+
+        if os.path.isfile(file):  # 선택한 파일이 존재할경우에
+            response = QMessageBox.question(self, 'Message', 'Are you sure to quit?',
+                                            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            print(response)
+            if response == QMessageBox.Yes:
+                os.remove(file)  # 파일을 삭제한다
+                self.Uplist()
+                QtWidgets.QMessageBox.about(widget, "INFO", "파일" + user + "의 삭제가 완료 되었습니다")  # 삭제완료 메세지 박스로 알려준다
+            else:
+                QtWidgets.QMessageBox.about(widget, "CANCEL", "파일" + user + "의 삭제를 취소하였습니다")
+        else:
+            QtWidgets.QMessageBox.about(widget, "Error",
+                                        "삭제할 파일이 존재하지 않습니다다")  # 파일이 존재하지 않을 경우에 메세지박스로 알려준다(정상적인 상황에서 발생할수 없는 오류)
+
+
+class Add_User(QMainWindow):  # 사용자 추가 방식 고르는 페이지
+    def __init__(self):
+        super().__init__()
+        loadUi("adduser.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.detectButton.clicked.connect(self.getname)
+
+    def getname(self):
+        cam = Get_Name()
+        cam.exec_()
+        print(user)
+        addcam = Add_Cam(user)
+        addcam.exec_()
+
+
+class Get_Name(QDialog):
+    def __init__(self):
+        super().__init__()
+        loadUi("getname.ui", self)
+        self.setFixedHeight(300)
+        self.setFixedHeight(200)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.pushButton_2.clicked.connect(self.close)
+        self.pushButton.clicked.connect(self.getback)
+
+    def getback(self):
+        global user
+        user = self.lineEdit.text()
+        print(user)
+        self.close()
+
+
+class Add_Cam(QDialog):
+    def __init__(self, user):
+        super().__init__()
+        loadUi("local.ui", self)
+        self.user = user
+        self.setFixedHeight(700)
+        self.setFixedWidth(800)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.backButton.clicked.connect(self.stop)
+        self.start()
+
+    def run(self):
+        knownEncodings = []
+        knownNames = []
+
+        global running
+        cap = cv2.VideoCapture(0)
+        count = 0
+        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        self.label.resize(width, height)
+        while running:
+            ret, img = cap.read()
+            if ret:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                boxes = face_recognition.face_locations(img, model='CNN')
+                encodings = face_recognition.face_encodings(img, boxes)
+                for encoding in encodings:
+                    global check
+                    check = True
+                    print(self.user, encoding)
+                    knownEncodings.append(encoding)
+                    knownNames.append(self.user)
+                    count += 1
+
+                if check is False:
+                    cv2.putText(img, "Face not Found", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 2)
+                    pass
+
+                for ((top, right, bottom, left), name) in zip(boxes, knownNames):
+                    # rescale the face coordinates
+
+                    color = (255, 255, 0)
+                    cv2.rectangle(img, (left, top), (right, bottom), color, 2)
+
+                    y = top - 15 if top - 15 > 15 else top + 15
+
+                    ename = user + str(count) + '%'
+                    if count == 100:
+                        ename = "complete"
+                    cv2.putText(img, ename, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 2)
+
+                h, w, c = img.shape
+                print(h, w, c)
+                qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+                pixmap = QtGui.QPixmap.fromImage(qImg)
+                self.label.setPixmap(pixmap)
+                check = False
+
+                if count == 100:
+                    print("collecting samples complete")
+                    break
+        data = {"encodings": knownEncodings, "names": knownNames}
+        createFolder('./users')
+        f = open('users/' + self.user, "ab")
+        f.write(pickle.dumps(data))
+        f.close()
+
+        cap.release()
+        print("Thread end.")
+        self.stop()
+
+    def stop(self):
+        global running
+        running = False
+        print("stoped..")
+        self.close()
+
+    def start(self):
+        global running
+        running = True
+        th = threading.Thread(target=self.run)
+        th.start()
+        print("started..")
 
 class Detect(QMainWindow):
     def __init__(self):
@@ -149,6 +331,7 @@ class Detect(QMainWindow):
         self.setFixedHeight(600)
         self.setFixedWidth(400)
         self.AddItem()
+        self.label.setAlignment(Qt.AlignCenter)
         self.backButton.clicked.connect(gotolocal)
         self.pushButton.clicked.connect(self.seleted)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
@@ -169,7 +352,6 @@ class Detect(QMainWindow):
     def findall(self):
         find = FindAll()
         find.exec_()
-
 
 
 class FindAll(QDialog):
@@ -254,14 +436,11 @@ class FindAll(QDialog):
         cap.release()
         print("Thread end.")
 
-
-
     def stop(self):
         global running
         running = False
         print("stoped..")
         self.close()
-
 
     def start_all(self):
         global running
@@ -269,6 +448,7 @@ class FindAll(QDialog):
         th = threading.Thread(target=self.run_all)
         th.start()
         print("started All..")
+
 
 class Camera(QDialog):
     def __init__(self, user):
@@ -281,7 +461,6 @@ class Camera(QDialog):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(self.stop)
         self.start()
-
 
     def run(self):
         knownEncodings = []
@@ -344,9 +523,9 @@ class Camera(QDialog):
                     cv2.putText(img, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.75, color, 2)
 
-                h,w,c = img.shape
-                print(h,w,c)
-                qImg = QtGui.QImage(img.data, w, h, w*c, QtGui.QImage.Format_RGB888)
+                h, w, c = img.shape
+                print(h, w, c)
+                qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
                 pixmap = QtGui.QPixmap.fromImage(qImg)
                 self.label.setPixmap(pixmap)
             else:
@@ -355,7 +534,6 @@ class Camera(QDialog):
                 break
         cap.release()
         print("Thread end.")
-
 
     def stop(self):
         global running
@@ -371,7 +549,6 @@ class Camera(QDialog):
         print("started..")
 
 
-
 class Login_Screen(QMainWindow):
     def __init__(self):
         super(Login_Screen, self).__init__()
@@ -384,11 +561,12 @@ class Login_Screen(QMainWindow):
         self.backButton.clicked.connect(gotohome)
 
     def btnClick(self):
+        global user_name
         db = client["member"]
         collection = db["member"]
         Id = self.lineEdit.text()
         Pass = self.lineEdit_2.text()
-
+        user_name = Id
         a = collection.find_one({"name": Id})
 
         pw = a["password"]
@@ -408,7 +586,7 @@ class Login_Screen(QMainWindow):
                 print('로그인')
                 QMessageBox.about(self, "Success", "로그인되었습니다")
                 loginstate()
-                gotomember(Id)
+                gotomember()
             else:
                 print('승인안됨')
                 QMessageBox.about(self, "Warning", "관리자 승인이 되지 않은 사용자입니다")
@@ -457,6 +635,8 @@ class Admin_Page(QMainWindow):
         loadUi("adminpage.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
+        self.label.setText(user_name)
+        self.label.setAlignment(Qt.AlignCenter)
         self.pushButton.clicked.connect(gotodetect)
         self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
         self.pushButton_4.clicked.connect(gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
@@ -464,22 +644,22 @@ class Admin_Page(QMainWindow):
 
 
 class Member_Page(QMainWindow):
-    def __init__(self, Id):
-        super.__init__()
-        # loadUi
+    def __init__(self):
+        super().__init__()
         loadUi("memberpage.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.pushButton_2.clicked.connect(logoutstate)     # 로그아웃 버튼
-        self.data.clicked.connect(gotodb)       # 데이터 베이스 접근 버튼 -> 업로드 다운로드
-        self.detect.clicked.connect(gotodetect)  # 사용자 찾는 버튼
-        self.label.setText(Id)
+        self.label.setText(user_name)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.pushButton.clicked.connect(gotodetect)
+        self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
+        self.pushButton_4.clicked.connect(gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
 
-class DB_Page(QMainWindow):
-    def __init__(self, Id):
-        super.__init__()
+class DB_Page(QMainWindow):  # 이새끼 고쳐야함
+    def __init__(self):
+        super().__init__()
         loadUi("memberdb.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
@@ -488,7 +668,6 @@ class DB_Page(QMainWindow):
         self.pushButton_4.clicked.connect(self.upload)  # 업로드 버튼
         self.pushButton_5.clicked.connect(self.delete)  # db 삭제 버튼
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
-        self.label.setText(Id)
 
     def download(self):
         pass
@@ -506,9 +685,10 @@ class Detect_Member(QMainWindow):
     # 여기에 detect 완료된거 받아쓰기
 
 
-app = QtWidgets.QApplication(sys.argv)
-home = Home_Screen()
-widget = QtWidgets.QStackedWidget()
-widget.addWidget(home)
-widget.show()
-app.exec_()
+if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    home = Home_Screen()
+    widget = QtWidgets.QStackedWidget()
+    widget.addWidget(home)
+    widget.show()
+    app.exec_()
