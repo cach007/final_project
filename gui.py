@@ -142,6 +142,7 @@ class Local_Menu(QMainWindow):
         self.backButton.clicked.connect(gotohome)
         self.detectButton.clicked.connect(gotodetect)
         self.userButton.clicked.connect(self.gotoedit)
+        self.pushButton_4.clicked.connect(gotologin)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
     def gotoedit(self):
@@ -211,13 +212,69 @@ class Add_User(QMainWindow):  # 사용자 추가 방식 고르는 페이지
         self.setFixedHeight(600)
         self.setFixedWidth(400)
         self.detectButton.clicked.connect(self.getname)
+        self.backButton.clicked.connect(self.gotoedit)
+        self.pushButton_4.clicked.connect(self.runimage)
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
     def getname(self):
         cam = Get_Name()
         cam.exec_()
         print(user)
-        addcam = Add_Cam(user)
-        addcam.exec_()
+        if user != 'none':
+            addcam = Add_Cam(user)
+            addcam.exec_()
+
+    def gotoedit(self):
+        edit = User_Edit()
+        widget.addWidget(edit)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def dest_folder(self):  # 찾아보기 버튼  파일경로읽어오기
+        files = QtWidgets.QFileDialog.getExistingDirectory(self, 'select image directory')
+
+        global select_folder  # 선택 파일 경로
+        select_folder = files + '/'
+        print(select_folder)
+
+    def runimage(self):
+        cam = Get_Name()
+        cam.exec_()
+
+        if user != 'none':
+            self.dest_folder()
+            if select_folder != '/':
+                knownEncodings = []
+                knownNames = []
+
+                onlyfile = [f for f in listdir(select_folder) if isfile(join(select_folder, f))]
+                for i, files in enumerate(onlyfile):
+                    filename = select_folder + onlyfile[i]
+                    print(filename)
+                    print(onlyfile[i])
+                    images = cv2.imread(filename)
+                    assert images is not None, ' can\'t open file as img'
+
+                    rgb = cv2.cvtColor(images, cv2.COLOR_BGR2RGB)
+                    boxes = face_recognition.face_locations(rgb, model='CNN')
+                    encodings = face_recognition.face_encodings(rgb, boxes)
+
+                    if not boxes:  # 이미지에 얼굴이 없을겨우 종료
+                        print("인식 실패")
+                        QtWidgets.QMessageBox.about(widget, "Error", "식별이 안되는 이미지가 있습니다.")
+                        return 0
+
+                    for encoding in encodings:
+                        knownEncodings.append(encoding)
+                        knownNames.append(user)
+                        print(encoding)
+
+                data = {"encodings": knownEncodings, "names": knownNames}
+                createFolder('./users')
+                f = open(data_path + user, 'wb')
+                print(data)
+                f.write(pickle.dumps(data))
+                f.close()
+                QtWidgets.QMessageBox.about(widget, "INFO", "사용자 등록 완료.")
 
 
 class Get_Name(QDialog):
@@ -253,7 +310,8 @@ class Add_Cam(QDialog):
     def run(self):
         knownEncodings = []
         knownNames = []
-
+        global check
+        check = False
         global running
         cap = cv2.VideoCapture(0)
         count = 0
@@ -267,7 +325,6 @@ class Add_Cam(QDialog):
                 boxes = face_recognition.face_locations(img, model='CNN')
                 encodings = face_recognition.face_encodings(img, boxes)
                 for encoding in encodings:
-                    global check
                     check = True
                     print(self.user, encoding)
                     knownEncodings.append(encoding)
@@ -275,7 +332,7 @@ class Add_Cam(QDialog):
                     count += 1
 
                 if check is False:
-                    cv2.putText(img, "Face not Found", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 2)
+                    cv2.putText(img, "Face not Found", (0, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     pass
 
                 for ((top, right, bottom, left), name) in zip(boxes, knownNames):
@@ -323,6 +380,7 @@ class Add_Cam(QDialog):
         th = threading.Thread(target=self.run)
         th.start()
         print("started..")
+
 
 class Detect(QMainWindow):
     def __init__(self):
