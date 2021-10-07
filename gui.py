@@ -391,6 +391,8 @@ class Choose_One(QMainWindow):
         self.detectButton.clicked.connect(self.webone)
         self.backButton.clicked.connect(self.goback)
         self.userButton.clicked.connect(self.imgone)
+        self.pushButton_6.clicked.connect(self.videone)
+        self.pushButton_5.clicked.connect(QCoreApplication.instance().quit)
 
     def goback(self):
         back = Detect()
@@ -398,7 +400,7 @@ class Choose_One(QMainWindow):
         widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def webone(self):
-        cam = Camera(self.user)
+        cam = Camera(self.user, 0)
         cam.camstart()
         cam.exec_()
 
@@ -412,6 +414,14 @@ class Choose_One(QMainWindow):
         else:
             pass
 
+    def videone(self):
+        video_file = QtWidgets.QFileDialog.getOpenFileName(self, 'select image')
+        video = video_file[0]
+        if video:
+            cam = Camera(self.user, video)
+            cam.videostart()
+            cam.exec()
+
 
 class Choose_All(QMainWindow):
     def __init__(self):
@@ -419,17 +429,39 @@ class Choose_All(QMainWindow):
         loadUi("choose.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.detectButton.clicked.connect(self.findall)
+        self.detectButton.clicked.connect(self.camall)
         self.backButton.clicked.connect(self.goback)
+        self.userButton.clicked.connect(self.imgall)
+        self.pushButton_6.clicked.connect(self.videall)
+        self.pushButton_5.clicked.connect(QCoreApplication.instance().quit)
 
-    def findall(self):
-        find = FindAll()
+    def camall(self):
+        find = FindAll(1)
+        find.camstart()
         find.exec_()
 
     def goback(self):
         back = Detect()
         widget.addWidget(back)
         widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def imgall(self):
+        image_file = QtWidgets.QFileDialog.getOpenFileName(self, 'select image')
+        img = image_file[0]
+        if img:
+            cam = FindAll(img)
+            cam.imgstart()
+            cam.exec_()
+        else:
+            pass
+
+    def videall(self):
+        video_file = QtWidgets.QFileDialog.getOpenFileName(self, 'select image')
+        video = video_file[0]
+        if video:
+            cam = FindAll(video)
+            cam.videostart()
+            cam.exec()
 
 
 class Detect(QMainWindow):
@@ -464,15 +496,27 @@ class Detect(QMainWindow):
 
 
 class FindAll(QDialog):     # 사용자 전체
-    def __init__(self):
+    def __init__(self, url):
         super().__init__()
         loadUi("local.ui", self)
         self.setFixedHeight(700)
         self.setFixedHeight(800)
+        self.url = url
+        self.scaler = 0.5
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(self.stop)
-        self.start_all()
+
+    def webcam(self):
+        self.run_all()
+
+    def image(self):
+        img = cv2.imread(self.url)
+        self.img_all(img)
+
+    def video(self):
+        video = cv2.VideoCapture(self.url)
+        self.video_all(video)
 
     def run_all(self):
         knownEncodings = []
@@ -545,18 +589,164 @@ class FindAll(QDialog):     # 사용자 전체
         cap.release()
         print("Thread end.")
 
+    def video_all(self, cap):
+        knownEncodings = []
+        knownNames = []
+
+        load_data(data_path)  # 리스트에 들어가 파일이 있는 폴더를 스캔해준다
+        for i in onlyfiles:  # 리스트에 존재하는 파일 순서대로 입력
+            u_data = pickle.loads(open('users/' + i, "rb").read())
+            for encoding in u_data["encodings"]:
+                knownEncodings.append(encoding)
+                knownNames.append(i)
+
+        data = {"encodings": knownEncodings, "names": knownNames}
+
+        global running
+
+        while running:
+            ret, image = cap.read()
+            if ret:
+
+                img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                img = cv2.resize(img, (int(img.shape[1] * self.scaler), int(img.shape[0] * self.scaler)))
+
+                boxes = face_recognition.face_locations(img, model='CNN')
+                encodings = face_recognition.face_encodings(img, boxes)
+                names = []
+                for encoding in encodings:
+                    matches = face_recognition.compare_faces(data["encodings"], encoding, tolerance=0.35)
+                    name = 'unknown'
+
+                    if True in matches:
+                        matchesIndxs = []
+                        for (i, b) in enumerate(matches):
+                            if b:
+                                matchesIndxs.append(i)
+
+                        counts = {}
+
+                        for items in matchesIndxs:
+                            name = data['names'][items]
+                            counts[name] = counts.get(name, 0) + 1
+
+                        for items in matchesIndxs:
+                            counts[data['names'][items]] = counts.get(data['names'][items]) + 1
+                        name = max(counts, key=counts.get)
+                        print(counts)
+                    names.append(name)
+
+                for ((top, right, bottom, left), name) in zip(boxes, names):
+
+                    color = (255, 255, 0)
+                    if name == 'unknown':
+                        color = (255, 255, 255)
+                        # draw the predicted face name on the image
+                    cv2.rectangle(img, (left, top), (right, bottom),
+                                  color, 2)
+                    y = top - 15 if top - 15 > 15 else top + 15
+                    cv2.putText(img, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.75, color, 2)
+
+                h, w, c = img.shape
+                self.label.resize(w, h)
+                print(h, w, c)
+                qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+                pixmap = QtGui.QPixmap.fromImage(qImg)
+                self.label.setPixmap(pixmap)
+            else:
+                QtWidgets.QMessageBox.about(widget, "Error", "Cannot read frame.")
+                print("cannot read frame.")
+                break
+        cap.release()
+        print("Thread end.")
+
+    def img_all(self, img):
+        knownEncodings = []
+        knownNames = []
+
+        load_data(data_path)  # 리스트에 들어가 파일이 있는 폴더를 스캔해준다
+        for i in onlyfiles:  # 리스트에 존재하는 파일 순서대로 입력
+            u_data = pickle.loads(open('users/' + i, "rb").read())
+            for encoding in u_data["encodings"]:
+                knownEncodings.append(encoding)
+                knownNames.append(i)
+
+        data = {"encodings": knownEncodings, "names": knownNames}
+
+        img = cv2.resize(img, (int(img.shape[1] * self.scaler), int(img.shape[0] * self.scaler)))
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        boxes = face_recognition.face_locations(img, model='CNN')
+        encodings = face_recognition.face_encodings(img, boxes)
+        names = []
+        for encoding in encodings:
+            matches = face_recognition.compare_faces(data["encodings"], encoding, tolerance=0.35)
+            name = 'unknown'
+
+            if True in matches:
+                matchesIndxs = []
+                for (i, b) in enumerate(matches):
+                    if b:
+                        matchesIndxs.append(i)
+
+                counts = {}
+
+                for items in matchesIndxs:
+                    name = data['names'][items]
+                    counts[name] = counts.get(name, 0) + 1
+
+                for items in matchesIndxs:
+                    counts[data['names'][items]] = counts.get(data['names'][items]) + 1
+                name = max(counts, key=counts.get)
+                print(counts)
+            names.append(name)
+
+        for ((top, right, bottom, left), name) in zip(boxes, names):
+            # rescale the face coordinates
+
+            color = (255, 255, 0)
+            if name == 'unknown':
+                color = (255, 255, 255)
+                # draw the predicted face name on the image
+            cv2.rectangle(img, (left, top), (right, bottom),
+                          color, 2)
+            y = top - 15 if top - 15 > 15 else top + 15
+            cv2.putText(img, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.75, color, 2)
+
+        h, w, c = img.shape
+        print(h, w, c)
+        qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+        pixmap = QtGui.QPixmap.fromImage(qImg)
+        self.label.setPixmap(pixmap)
+
     def stop(self):
         global running
         running = False
         print("stoped..")
         self.close()
 
-    def start_all(self):
+    def camstart(self):
         global running
         running = True
-        th = threading.Thread(target=self.run_all)
+        th = threading.Thread(target=self.webcam)
         th.start()
-        print("started All..")
+        print("started..")
+
+    def imgstart(self):
+        global running
+        running = True
+        th = threading.Thread(target=self.image)
+        th.start()
+        print("started..")
+
+    def videostart(self):
+        global running
+        running = True
+        th = threading.Thread(target=self.video)
+        th.start()
+        print("started..")
 
 
 class Camera(QDialog):
@@ -565,11 +755,15 @@ class Camera(QDialog):
         loadUi("local.ui", self)
         self.user = user
         self.url = url
+        self.scaler = 0.5
         self.setFixedHeight(700)
         self.setFixedWidth(800)
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(self.stop)
+
+    def __del__(self):
+        self.stop()
 
     def webcam(self):
         cap = cv2.VideoCapture(0)
@@ -578,6 +772,10 @@ class Camera(QDialog):
     def image(self):
         img = cv2.imread(self.url)
         self.img_run(img)
+
+    def video(self):
+        video = cv2.VideoCapture(self.url)
+        self.video_run(video)
 
     def run(self, cap):
         knownEncodings = []
@@ -651,6 +849,80 @@ class Camera(QDialog):
         cap.release()
         print("Thread end.")
 
+    def video_run(self, cap):
+        knownEncodings = []
+        knownNames = []
+
+        try:
+            data = pickle.loads(open('users/' + self.user, "rb").read())
+        except OSError:
+            print('can\'t found ' + self.user)
+
+        for encoding in data["encodings"]:
+            knownEncodings.append(encoding)
+            knownNames.append(self.user)
+
+        data = {"encodings": knownEncodings, "names": knownNames}
+
+        global running
+
+        while running:
+            ret, image = cap.read()
+            if ret:
+
+                img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                img = cv2.resize(img, (int(img.shape[1] * self.scaler), int(img.shape[0] * self.scaler)))
+
+                boxes = face_recognition.face_locations(img, model='CNN')
+                encodings = face_recognition.face_encodings(img, boxes)
+                names = []
+                for encoding in encodings:
+                    matches = face_recognition.compare_faces(data["encodings"], encoding, tolerance=0.35)
+                    name = 'unknown'
+
+                    if True in matches:
+                        matchesIndxs = []
+                        for (i, b) in enumerate(matches):
+                            if b:
+                                matchesIndxs.append(i)
+
+                        counts = {}
+
+                        for items in matchesIndxs:
+                            name = data['names'][items]
+                            counts[name] = counts.get(name, 0) + 1
+
+                        for items in matchesIndxs:
+                            counts[data['names'][items]] = counts.get(data['names'][items]) + 1
+                        name = max(counts, key=counts.get)
+                        print(counts)
+                    names.append(name)
+
+                for ((top, right, bottom, left), name) in zip(boxes, names):
+
+                    color = (255, 255, 0)
+                    if name == 'unknown':
+                        color = (255, 255, 255)
+                        # draw the predicted face name on the image
+                    cv2.rectangle(img, (left, top), (right, bottom),
+                                  color, 2)
+                    y = top - 15 if top - 15 > 15 else top + 15
+                    cv2.putText(img, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.75, color, 2)
+
+                h, w, c = img.shape
+                self.label.resize(w, h)
+                print(h, w, c)
+                qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+                pixmap = QtGui.QPixmap.fromImage(qImg)
+                self.label.setPixmap(pixmap)
+            else:
+                QtWidgets.QMessageBox.about(widget, "Error", "Cannot read frame.")
+                print("cannot read frame.")
+                break
+        cap.release()
+        print("Thread end.")
+
     def img_run(self, img):
         knownEncodings = []
         knownNames = []
@@ -666,8 +938,7 @@ class Camera(QDialog):
 
         data = {"encodings": knownEncodings, "names": knownNames}
 
-        scaler = 0.5
-        img = cv2.resize(img, (int(img.shape[1] * scaler), int(img.shape[0] * scaler)))
+        img = cv2.resize(img, (int(img.shape[1] * self.scaler), int(img.shape[0] * self.scaler)))
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         boxes = face_recognition.face_locations(img, model='CNN')
@@ -731,6 +1002,13 @@ class Camera(QDialog):
         global running
         running = True
         th = threading.Thread(target=self.image)
+        th.start()
+        print("started..")
+
+    def videostart(self):
+        global running
+        running = True
+        th = threading.Thread(target=self.video)
         th.start()
         print("started..")
 
@@ -978,12 +1256,11 @@ class DB_Upload(QMainWindow):
                                         "삭제할 파일이 존재하지 않습니다다")  # 파일이 존재하지 않을 경우에 메세지박스로 알려준다(정상적인 상황에서 발생할수 없는 오류)
 
 
-
 class Detect_Member(QMainWindow):
     def __init__(self):
         pass
     # 여기에 detect 완료된거 받아쓰기
-
+    # test
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
