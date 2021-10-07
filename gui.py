@@ -84,7 +84,7 @@ def gotoregister():
 
 
 def gotodb():
-    db = DB_Page()
+    db = DB_Download()
     widget.addWidget(db)
     widget.setCurrentIndex(widget.currentIndex() + 1)
 
@@ -183,7 +183,6 @@ class User_Edit(QMainWindow):
     def Deleteuser(self):  # 사용자를 삭제하는 함수
         user = self.listWidget.currentItem().text()
         if user:
-
             print(user)
         else:
             QtWidgets.QMessageBox.about(widget, "Error", "삭제할 사용자를 선택하세요.")
@@ -382,6 +381,57 @@ class Add_Cam(QDialog):
         print("started..")
 
 
+class Choose_One(QMainWindow):
+    def __init__(self, user):
+        super().__init__()
+        loadUi("choose.ui", self)
+        self.user = user
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.detectButton.clicked.connect(self.webone)
+        self.backButton.clicked.connect(self.goback)
+        self.userButton.clicked.connect(self.imgone)
+
+    def goback(self):
+        back = Detect()
+        widget.addWidget(back)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def webone(self):
+        cam = Camera(self.user)
+        cam.camstart()
+        cam.exec_()
+
+    def imgone(self):
+        image_file = QtWidgets.QFileDialog.getOpenFileName(self, 'select image')
+        img = image_file[0]
+        if img:
+            cam = Camera(self.user, img)
+            cam.imgstart()
+            cam.exec_()
+        else:
+            pass
+
+
+class Choose_All(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        loadUi("choose.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.detectButton.clicked.connect(self.findall)
+        self.backButton.clicked.connect(self.goback)
+
+    def findall(self):
+        find = FindAll()
+        find.exec_()
+
+    def goback(self):
+        back = Detect()
+        widget.addWidget(back)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+
 class Detect(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -391,28 +441,29 @@ class Detect(QMainWindow):
         self.AddItem()
         self.label.setAlignment(Qt.AlignCenter)
         self.backButton.clicked.connect(gotolocal)
-        self.pushButton.clicked.connect(self.seleted)
+        self.pushButton.clicked.connect(self.findone)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton_2.clicked.connect(self.findall)
 
     def AddItem(self):
+        self.listWidget.clear()
         load_data(data_path)
         for data in onlyfiles:
             self.listWidget.addItem(data)
 
-    def seleted(self):
-        user = self.listWidget.currentItem().text()
-        print(user)
-
-        cam = Camera(user)
-        cam.exec_()
-
     def findall(self):
-        find = FindAll()
-        find.exec_()
+        all = Choose_All()
+        widget.addWidget(all)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def findone(self):
+        user = self.listWidget.currentItem().text()
+        one = Choose_One(user)
+        widget.addWidget(one)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
 
-class FindAll(QDialog):
+class FindAll(QDialog):     # 사용자 전체
     def __init__(self):
         super().__init__()
         loadUi("local.ui", self)
@@ -509,18 +560,26 @@ class FindAll(QDialog):
 
 
 class Camera(QDialog):
-    def __init__(self, user):
+    def __init__(self, user, url):
         super().__init__()
         loadUi("local.ui", self)
         self.user = user
+        self.url = url
         self.setFixedHeight(700)
         self.setFixedWidth(800)
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.backButton.clicked.connect(self.stop)
-        self.start()
 
-    def run(self):
+    def webcam(self):
+        cap = cv2.VideoCapture(0)
+        self.run(cap)
+
+    def image(self):
+        img = cv2.imread(self.url)
+        self.img_run(img)
+
+    def run(self, cap):
         knownEncodings = []
         knownNames = []
 
@@ -535,7 +594,6 @@ class Camera(QDialog):
 
         data = {"encodings": knownEncodings, "names": knownNames}
         global running
-        cap = cv2.VideoCapture(0)
         width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.label.resize(width, height)
@@ -593,16 +651,86 @@ class Camera(QDialog):
         cap.release()
         print("Thread end.")
 
+    def img_run(self, img):
+        knownEncodings = []
+        knownNames = []
+
+        try:
+            data = pickle.loads(open('users/' + self.user, "rb").read())
+        except OSError:
+            print('can\'t found ' + self.user)
+
+        for encoding in data["encodings"]:
+            knownEncodings.append(encoding)
+            knownNames.append(self.user)
+
+        data = {"encodings": knownEncodings, "names": knownNames}
+
+        scaler = 0.5
+        img = cv2.resize(img, (int(img.shape[1] * scaler), int(img.shape[0] * scaler)))
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        boxes = face_recognition.face_locations(img, model='CNN')
+        encodings = face_recognition.face_encodings(img, boxes)
+        names = []
+        for encoding in encodings:
+            matches = face_recognition.compare_faces(data["encodings"], encoding, tolerance=0.35)
+            name = 'unknown'
+
+            if True in matches:
+                matchesIndxs = []
+                for (i, b) in enumerate(matches):
+                    if b:
+                        matchesIndxs.append(i)
+
+                counts = {}
+
+                for items in matchesIndxs:
+                    name = data['names'][items]
+                    counts[name] = counts.get(name, 0) + 1
+
+                for items in matchesIndxs:
+                    counts[data['names'][items]] = counts.get(data['names'][items]) + 1
+                name = max(counts, key=counts.get)
+                print(counts)
+            names.append(name)
+
+        for ((top, right, bottom, left), name) in zip(boxes, names):
+            # rescale the face coordinates
+
+            color = (255, 255, 0)
+            if name == 'unknown':
+                color = (255, 255, 255)
+                # draw the predicted face name on the image
+            cv2.rectangle(img, (left, top), (right, bottom),
+                          color, 2)
+            y = top - 15 if top - 15 > 15 else top + 15
+            cv2.putText(img, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.75, color, 2)
+
+        h, w, c = img.shape
+        print(h, w, c)
+        qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+        pixmap = QtGui.QPixmap.fromImage(qImg)
+        self.label.setPixmap(pixmap)
+
     def stop(self):
         global running
         running = False
         print("stoped..")
         self.close()
 
-    def start(self):
+    def camstart(self):
         global running
         running = True
-        th = threading.Thread(target=self.run)
+        th = threading.Thread(target=self.webcam)
+        th.start()
+        print("started..")
+
+    def imgstart(self):
+        global running
+        running = True
+        th = threading.Thread(target=self.image)
         th.start()
         print("started..")
 
@@ -715,26 +843,140 @@ class Member_Page(QMainWindow):
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
 
-class DB_Page(QMainWindow):  # 이새끼 고쳐야함
+class DB_Download(QMainWindow):  # 로그인후 db 접근 페이지
     def __init__(self):
         super().__init__()
         loadUi("memberdb.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
+        self.db = client["test"]
+        self.label.setText(user_name)
+        self.label.setAlignment(Qt.AlignCenter)
         self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
-        self.pushButton.clicked.connect(self.donwnload)  # 다운로드 버튼
-        self.pushButton_4.clicked.connect(self.upload)  # 업로드 버튼
-        self.pushButton_5.clicked.connect(self.delete)  # db 삭제 버튼
+        self.pushButton.clicked.connect(self.download)  # 다운로드 버튼
+        self.pushButton_5.clicked.connect(self.switch)  # 업로드 버튼
+        self.pushButton_4.clicked.connect(self.delete)  # db 삭제 버튼
+        self.backButton.clicked.connect(self.back)
+        self.listset()
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
 
-    def download(self):
-        pass
+    def listset(self):
+        self.listWidget.clear()
+        a = self.db.list_collection_names()
+        for data in a:
+            self.listWidget.addItem(data)
 
-    def upload(self):
-        pass
+    def back(self):
+        mem = Member_Page()
+        widget.addWidget(mem)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def download(self):
+
+        db_user = self.listWidget.currentItem().text()
+        print(db_user)
+
+        knownEncodings = []
+        knownNames = []
+
+        if db_user in listdir(data_path):
+            pass
+
+        collection = self.db[db_user]
+        result = collection.find({"name": db_user},{"_id": False})
+
+        for r in result:
+            knownEncodings.append((r["128d"]))
+            knownNames.append(db_user)
+
+        data = {"encodings": knownEncodings, "names": knownNames}
+        createFolder(data_path)
+        f = open(data_path + db_user, 'wb')
+        print(data)
+        f.write(pickle.dumps(data))
+        f.close()
+        print(db_user + 'download 완료')
+
+    def switch(self):
+        dbup = DB_Upload()
+        widget.addWidget(dbup)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def delete(self):
-        pass
+        user = self.listWidget.currentItem().text()
+        print(user)
+        collection = self.db[user]
+        collection.drop()
+        print(user + '삭제완료')
+        self.listset()
+
+
+class DB_Upload(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        loadUi("dbupload.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.db = client["test"]
+        self.label.setText(user_name)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
+        self.pushButton.clicked.connect(self.upload)  # 다운로드 버튼
+        self.pushButton_5.clicked.connect(self.switch)  # 업로드 버튼
+        self.pushButton_4.clicked.connect(self.delete)  # db 삭제 버튼
+        self.backButton.clicked.connect(self.back)
+        self.listset()
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+    def listset(self):
+        self.listWidget.clear()
+        load_data(data_path)
+        for data in onlyfiles:
+            self.listWidget.addItem(data)
+
+    def back(self):
+        mem = Member_Page()
+        widget.addWidget(mem)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def upload(self):
+        user = self.listWidget.currentItem().text()
+        print(user)
+        data = pickle.loads(open('users/' + user, "rb").read())
+        collection = self.db[user]
+        for encoding in data["encodings"]:
+            collection.insert_one({"128d": list(encoding), "name": user})
+
+        print("upload완료")
+
+    def switch(self):   # download 로 바꿔줌
+        dbdown = DB_Download()
+        widget.addWidget(dbdown)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def delete(self):
+        user = self.listWidget.currentItem().text()
+        if user:
+            print(user)
+        else:
+            QtWidgets.QMessageBox.about(widget, "Error", "삭제할 사용자를 선택하세요.")
+
+        file = 'users/' + user
+
+        if os.path.isfile(file):  # 선택한 파일이 존재할경우에
+            response = QMessageBox.question(self, 'Message', 'Are you sure to delete?',
+                                            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            print(response)
+            if response == QMessageBox.Yes:
+                os.remove(file)  # 파일을 삭제한다
+                self.listset()
+                QtWidgets.QMessageBox.about(widget, "INFO", "파일" + user + "의 삭제가 완료 되었습니다")  # 삭제완료 메세지 박스로 알려준다
+            else:
+                QtWidgets.QMessageBox.about(widget, "CANCEL", "파일" + user + "의 삭제를 취소하였습니다")
+        else:
+            QtWidgets.QMessageBox.about(widget, "Error",
+                                        "삭제할 파일이 존재하지 않습니다다")  # 파일이 존재하지 않을 경우에 메세지박스로 알려준다(정상적인 상황에서 발생할수 없는 오류)
+
 
 
 class Detect_Member(QMainWindow):
