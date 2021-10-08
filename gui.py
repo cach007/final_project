@@ -53,51 +53,9 @@ def open_folder():
     os.startfile(path)
 
 
-def gotologin():
-    login = Login_Screen()
-    widget.addWidget(login)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
 def gotohome():
     home = Home_Screen()
     widget.addWidget(home)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotodetect():
-    detect = Detect()
-    widget.addWidget(detect)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotolocal():
-    local = Local_Menu()
-    widget.addWidget(local)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotoregister():
-    reg = Reg_Screen()
-    widget.addWidget(reg)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotodb():
-    db = DB_Download()
-    widget.addWidget(db)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotoadmin():
-    adm = Admin_Page()
-    widget.addWidget(adm)
-    widget.setCurrentIndex(widget.currentIndex() + 1)
-
-
-def gotomember():
-    mbr = Member_Page()
-    widget.addWidget(mbr)
     widget.setCurrentIndex(widget.currentIndex() + 1)
 
 
@@ -127,10 +85,19 @@ class Home_Screen(QMainWindow):
         loadUi("home.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.pushButton_2.clicked.connect(gotolocal)
+        self.pushButton_2.clicked.connect(self.gotolocal)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
-        self.pushButton.clicked.connect(gotologin)
-        self.pushButton_4.clicked.connect(gotomember)
+        self.pushButton.clicked.connect(self.gotologin)
+
+    def gotologin(self):
+        login = Login_Screen()
+        widget.addWidget(login)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def gotolocal(self):
+        local = Local_Menu()
+        widget.addWidget(local)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
 
 class Local_Menu(QMainWindow):
@@ -140,10 +107,20 @@ class Local_Menu(QMainWindow):
         self.setFixedHeight(600)
         self.setFixedWidth(400)
         self.backButton.clicked.connect(gotohome)
-        self.detectButton.clicked.connect(gotodetect)
+        self.detectButton.clicked.connect(self.gotodetect)
         self.userButton.clicked.connect(self.gotoedit)
-        self.pushButton_4.clicked.connect(gotologin)
+        self.pushButton_4.clicked.connect(self.gotologin)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+    def gotologin(self):
+        login = Login_Screen()
+        widget.addWidget(login)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def gotodetect(self):
+        detect = Detect('guest')
+        widget.addWidget(detect)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def gotoedit(self):
         edit = User_Edit()
@@ -159,10 +136,15 @@ class User_Edit(QMainWindow):
         self.setFixedWidth(400)
         self.AddItem()
         self.label.setAlignment(Qt.AlignCenter)
-        self.backButton.clicked.connect(gotolocal)
+        self.backButton.clicked.connect(self.gotolocal)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton_2.clicked.connect(self.Deleteuser)
         self.pushButton.clicked.connect(self.Adduser)
+
+    def gotolocal(self):
+        local = Local_Menu()
+        widget.addWidget(local)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def AddItem(self):
         load_data(data_path)
@@ -382,10 +364,11 @@ class Add_Cam(QDialog):
 
 
 class Choose_One(QMainWindow):
-    def __init__(self, user):
+    def __init__(self, user, level):
         super().__init__()
         loadUi("choose.ui", self)
         self.user = user
+        self.level = level
         self.setFixedHeight(600)
         self.setFixedWidth(400)
         self.detectButton.clicked.connect(self.webone)
@@ -395,9 +378,18 @@ class Choose_One(QMainWindow):
         self.pushButton_5.clicked.connect(QCoreApplication.instance().quit)
 
     def goback(self):
-        back = Detect()
-        widget.addWidget(back)
-        widget.setCurrentIndex(widget.currentIndex() + 1)
+        if self.level == 'admin':
+            admin = Detect('admin')
+            widget.addWidget(admin)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        elif self.level == 'member':
+            member = Detect('member')
+            widget.addWidget(member)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        else:
+            back = Detect('guest')
+            widget.addWidget(back)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def webone(self):
         cam = Camera(self.user, 0)
@@ -424,11 +416,12 @@ class Choose_One(QMainWindow):
 
 
 class Choose_All(QMainWindow):
-    def __init__(self):
+    def __init__(self, level):
         super().__init__()
         loadUi("choose.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
+        self.level = level
         self.detectButton.clicked.connect(self.camall)
         self.backButton.clicked.connect(self.goback)
         self.userButton.clicked.connect(self.imgall)
@@ -441,9 +434,18 @@ class Choose_All(QMainWindow):
         find.exec_()
 
     def goback(self):
-        back = Detect()
-        widget.addWidget(back)
-        widget.setCurrentIndex(widget.currentIndex() + 1)
+        if self.level == 'admin':
+            admin = Detect('admin')
+            widget.addWidget(admin)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        elif self.level == 'member':
+            member = Detect('member')
+            widget.addWidget(member)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        else:
+            back = Detect('guest')
+            widget.addWidget(back)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def imgall(self):
         image_file = QtWidgets.QFileDialog.getOpenFileName(self, 'select image')
@@ -465,17 +467,32 @@ class Choose_All(QMainWindow):
 
 
 class Detect(QMainWindow):
-    def __init__(self):
+    def __init__(self, level):
         super().__init__()
         loadUi("listest.ui", self)
+        self.level = level
         self.setFixedHeight(600)
         self.setFixedWidth(400)
         self.AddItem()
         self.label.setAlignment(Qt.AlignCenter)
-        self.backButton.clicked.connect(gotolocal)
+        self.backButton.clicked.connect(self.back)
         self.pushButton.clicked.connect(self.findone)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton_2.clicked.connect(self.findall)
+
+    def back(self):
+        if self.level == 'admin':
+            admin = Admin_Page()
+            widget.addWidget(admin)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        elif self.level == 'member':
+            member = Member_Page()
+            widget.addWidget(member)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        else:
+            back = Local_Menu()
+            widget.addWidget(back)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def AddItem(self):
         self.listWidget.clear()
@@ -484,13 +501,13 @@ class Detect(QMainWindow):
             self.listWidget.addItem(data)
 
     def findall(self):
-        all = Choose_All()
+        all = Choose_All(self.level)
         widget.addWidget(all)
         widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def findone(self):
         user = self.listWidget.currentItem().text()
-        one = Choose_One(user)
+        one = Choose_One(user, self.level)
         widget.addWidget(one)
         widget.setCurrentIndex(widget.currentIndex() + 1)
 
@@ -1019,10 +1036,25 @@ class Login_Screen(QMainWindow):
         loadUi("login.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.pushButton_2.clicked.connect(gotoregister)
+        self.pushButton_2.clicked.connect(self.gotoregister)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
         self.pushButton.clicked.connect(self.btnClick)
         self.backButton.clicked.connect(gotohome)
+
+    def gotoregister(self):
+        reg = Reg_Screen()
+        widget.addWidget(reg)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def gotomember(self):
+        mbr = Member_Page()
+        widget.addWidget(mbr)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def gotoadmin(self):
+        admin = Admin_Page()
+        widget.addWidget(admin)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def btnClick(self):
         global user_name
@@ -1044,13 +1076,13 @@ class Login_Screen(QMainWindow):
                 print("관리자")
                 QMessageBox.about(self, "Admin", "관리자로 로그인되었습니다")
                 adminstate()
-                gotoadmin()
+                self.gotoadmin()
 
             elif admin_check:
                 print('로그인')
                 QMessageBox.about(self, "Success", "로그인되었습니다")
                 loginstate()
-                gotomember()
+                self.gotomember()
             else:
                 print('승인안됨')
                 QMessageBox.about(self, "Warning", "관리자 승인이 되지 않은 사용자입니다")
@@ -1064,9 +1096,14 @@ class Reg_Screen(QMainWindow):
         loadUi("register.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
-        self.backButton.clicked.connect(gotologin)
+        self.backButton.clicked.connect(self.gotologin)
         self.pushButton.clicked.connect(self.register)
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+    def gotologin(self):
+        login = Login_Screen()
+        widget.addWidget(login)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def register(self):
         db = client["member"]
@@ -1086,25 +1123,11 @@ class Reg_Screen(QMainWindow):
             print(a)
             if a:
                 QMessageBox.about(self, "Success", "가입 되었습니다")
-                gotologin()
+                self.gotologin()
             else:
                 QMessageBox.about(self, "Failed", "다시 진행해주세요")
 
-        gotologin()
-
-
-class Admin_Page(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        loadUi("adminpage.ui", self)
-        self.setFixedHeight(600)
-        self.setFixedWidth(400)
-        self.label.setText(user_name)
-        self.label.setAlignment(Qt.AlignCenter)
-        self.pushButton.clicked.connect(gotodetect)
-        self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
-        self.pushButton_4.clicked.connect(gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
-        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+        self.gotologin()
 
 
 class Member_Page(QMainWindow):
@@ -1115,20 +1138,31 @@ class Member_Page(QMainWindow):
         self.setFixedWidth(400)
         self.label.setText(user_name)
         self.label.setAlignment(Qt.AlignCenter)
-        self.pushButton.clicked.connect(gotodetect)
+        self.pushButton.clicked.connect(self.gotodetect)
         self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
-        self.pushButton_4.clicked.connect(gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
+        self.pushButton_4.clicked.connect(self.gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
         self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+    def gotodb(self):
+        db = DB_Download('member')
+        widget.addWidget(db)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def gotodetect(self):
+        detect = Detect('member')
+        widget.addWidget(detect)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
 
 
 class DB_Download(QMainWindow):  # 로그인후 db 접근 페이지
-    def __init__(self):
+    def __init__(self, level):
         super().__init__()
         loadUi("memberdb.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
+        self.level = level
         self.db = client["test"]
-        self.label.setText(user_name)
+        self.label.setText('Download')
         self.label.setAlignment(Qt.AlignCenter)
         self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
         self.pushButton.clicked.connect(self.download)  # 다운로드 버튼
@@ -1145,9 +1179,14 @@ class DB_Download(QMainWindow):  # 로그인후 db 접근 페이지
             self.listWidget.addItem(data)
 
     def back(self):
-        mem = Member_Page()
-        widget.addWidget(mem)
-        widget.setCurrentIndex(widget.currentIndex() + 1)
+        if self.level == 'admin':
+            admin = Admin_Page()
+            widget.addWidget(admin)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        else:
+            mem = Member_Page()
+            widget.addWidget(mem)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def download(self):
 
@@ -1176,7 +1215,7 @@ class DB_Download(QMainWindow):  # 로그인후 db 접근 페이지
         print(db_user + 'download 완료')
 
     def switch(self):
-        dbup = DB_Upload()
+        dbup = DB_Upload(self.level)
         widget.addWidget(dbup)
         widget.setCurrentIndex(widget.currentIndex() + 1)
 
@@ -1190,13 +1229,14 @@ class DB_Download(QMainWindow):  # 로그인후 db 접근 페이지
 
 
 class DB_Upload(QMainWindow):
-    def __init__(self):
+    def __init__(self, level):
         super().__init__()
         loadUi("dbupload.ui", self)
         self.setFixedHeight(600)
         self.setFixedWidth(400)
+        self.level = level
         self.db = client["test"]
-        self.label.setText(user_name)
+        self.label.setText('Upload')
         self.label.setAlignment(Qt.AlignCenter)
         self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
         self.pushButton.clicked.connect(self.upload)  # 다운로드 버튼
@@ -1213,9 +1253,14 @@ class DB_Upload(QMainWindow):
             self.listWidget.addItem(data)
 
     def back(self):
-        mem = Member_Page()
-        widget.addWidget(mem)
-        widget.setCurrentIndex(widget.currentIndex() + 1)
+        if self.level == 'admin':
+            admin = Admin_Page()
+            widget.addWidget(admin)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+        else:
+            mem = Member_Page()
+            widget.addWidget(mem)
+            widget.setCurrentIndex(widget.currentIndex() + 1)
 
     def upload(self):
         user = self.listWidget.currentItem().text()
@@ -1228,7 +1273,7 @@ class DB_Upload(QMainWindow):
         print("upload완료")
 
     def switch(self):   # download 로 바꿔줌
-        dbdown = DB_Download()
+        dbdown = DB_Download(self.level)
         widget.addWidget(dbdown)
         widget.setCurrentIndex(widget.currentIndex() + 1)
 
@@ -1256,11 +1301,29 @@ class DB_Upload(QMainWindow):
                                         "삭제할 파일이 존재하지 않습니다다")  # 파일이 존재하지 않을 경우에 메세지박스로 알려준다(정상적인 상황에서 발생할수 없는 오류)
 
 
-class Detect_Member(QMainWindow):
+class Admin_Page(QMainWindow):
     def __init__(self):
-        pass
-    # 여기에 detect 완료된거 받아쓰기
-    # test
+        super().__init__()
+        loadUi("adminpage.ui", self)
+        self.setFixedHeight(600)
+        self.setFixedWidth(400)
+        self.label.setText(user_name)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.pushButton.clicked.connect(self.gotodetect)
+        self.pushButton_2.clicked.connect(logoutstate)  # 로그아웃 버튼
+        self.pushButton_4.clicked.connect(self.gotodb)  # 데이터 베이스 접근 버튼 -> 업로드 다운로드
+        self.pushButton_3.clicked.connect(QCoreApplication.instance().quit)  # quit 버튼 (종료)
+
+    def gotodb(self):
+        db = DB_Download('admin')
+        widget.addWidget(db)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
+    def gotodetect(self):
+        detect = Detect('admin')
+        widget.addWidget(detect)
+        widget.setCurrentIndex(widget.currentIndex() + 1)
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
