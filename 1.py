@@ -18,10 +18,8 @@ select_folder = ''  # 파일 탐색 초기화
 print(dlib.DLIB_USE_CUDA)  # gpu 사용 확인
 scaler = 0.35  # 원할한 이용을 위하여 동영상 크기를 줄이기 위해 사용
 login_check = False
-client = pymongo.MongoClient("mongodb://pjh0903:wlsghd19@cluster0-shard-00-00.xnjn4.mongodb.net:27017,"
-                             "cluster0-shard-00-01.xnjn4.mongodb.net:27017,"
-                             "cluster0-shard-00-02.xnjn4.mongodb.net:27017/myFirstDatabase?ssl=true&replicaSet=atlas"
-                             "-8epj50-shard-0&authSource=admin&retryWrites=true&w=majority")
+DB = pickle.loads(open("DBkey", "rb").read())  # 데이터베이스 비밀번호를 담고 있는 피클 파일을 연다
+client = pymongo.MongoClient(DB)
 print(client)
 
 
